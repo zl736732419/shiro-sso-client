@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:context="http://www.springframework.org/schema/context"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans 
+	http://www.springframework.org/schema/beans/spring-beans.xsd
+	http://www.springframework.org/schema/context
+	http://www.springframework.org/schema/context/spring-context.xsd">
+	
+	<context:property-placeholder location="classpath:db.properties"/>
+	
+	<bean id="dataSource" class="com.alibaba.druid.pool.DruidDataSource">
+		<property name="driverClassName" value="${jdbc.driverClassName}" />
+		<property name="url" value="${jdbc.url}" />
+		<property name="username" value="${jdbc.username}" />
+		<property name="password" value="${jdbc.password}" />
+	</bean>
+	
+	
+	<!-- 使用假继承 -->
+	<bean id="baseDao" abstract="true">
+		<property name="dataSource" ref="dataSource"/>
+	</bean>
+	<bean id="userDao" class="com.zheng.dao.impl.UserDaoImpl" parent="baseDao"></bean>
+	<bean id="roleDao" class="com.zheng.dao.impl.RoleDaoImpl" parent="baseDao"></bean>
+	<bean id="permissionDao" class="com.zheng.dao.impl.PermissionDaoImpl" parent="baseDao"></bean>
+	
+	<!-- service -->
+	<bean id="permissionService" class="com.zheng.service.impl.PermissionServiceImpl">
+		<property name="permissionDao" ref="permissionDao"></property>
+	</bean>
+	
+	<bean id="roleService" class="com.zheng.service.impl.RoleServiceImpl">
+		<property name="roleDao" ref="roleDao"></property>
+	</bean>
+	
+	<bean id="randomNumberGenerator" class="org.apache.shiro.crypto.SecureRandomNumberGenerator"></bean>
+	
+	<bean id="passwordHelper" class="com.zheng.utils.PasswordHelper">
+		<property name="algorithmName" value="md5"></property>
+		<property name="hashIterations" value="2"></property>
+		<property name="generator" ref="randomNumberGenerator"></property>
+	</bean>
+	
+	<bean id="userService" class="com.zheng.service.impl.UserServiceImpl">
+		<property name="userDao" ref="userDao"></property>
+		<property name="pwdHelper" ref="passwordHelper"></property>
+	</bean>
+	
+	
+</beans>

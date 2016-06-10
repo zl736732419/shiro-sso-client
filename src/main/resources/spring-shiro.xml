@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:util="http://www.springframework.org/schema/util" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="
+       http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+       http://www.springframework.org/schema/util http://www.springframework.org/schema/util/spring-util.xsd">
+
+	<!-- 配置缓存，使用ehcache实现 -->
+	<bean id="cacheManager" class="org.apache.shiro.cache.ehcache.EhCacheManager">
+		<property name="cacheManagerConfigFile" value="classpath:shiro-spring-ehcache.xml"></property>
+	</bean>
+
+	<!-- 创建session id generator -->
+	<!-- 会话ID生成器 -->
+	<bean id="sessionIdGenerator"
+		class="org.apache.shiro.session.mgt.eis.JavaUuidSessionIdGenerator" />
+
+	<!-- 会话Cookie模板 -->
+	<bean id="sessionIdCookie" class="org.apache.shiro.web.servlet.SimpleCookie">
+		<constructor-arg value="sid" />
+		<property name="httpOnly" value="true" />
+		<!-- maxAge=-1表示浏览器关闭时清除cookie 需要注意的一点是，在配置了remmemberMe的功能前提下，需要将该cookie的maxAge设置为-1， 
+			也就是在浏览器关闭之后清除登录缓存 -->
+		<property name="maxAge" value="-1" />
+	</bean>
+
+	<!-- 添加rememberme 功能实现 -->
+	<bean id="rememberMeCookie" class="org.apache.shiro.web.servlet.SimpleCookie">
+		<constructor-arg value="rememberMe" />
+		<property name="httpOnly" value="true" />
+		<property name="maxAge" value="2592000" /><!-- 30天 -->
+	</bean>
+
+	<!-- rememberme管理器 -->
+	<bean id="rememberMeManager" class="org.apache.shiro.web.mgt.CookieRememberMeManager">
+		<property name="cipherKey"
+			value="#{T(org.apache.shiro.codec.Base64).decode('4AvVhmFLUs0KTA3Kprsdag==')}"></property>
+		<property name="cookie" ref="rememberMeCookie"></property>
+	</bean>
+
+	<bean id="sessionDao"
+		class="org.apache.shiro.session.mgt.eis.EnterpriseCacheSessionDAO">
+		<property name="activeSessionsCacheName" value="shiro-activeSessionCache"></property>
+		<property name="sessionIdGenerator" ref="sessionIdGenerator"></property>
+	</bean>
+
+	<!-- web项目中需要配置session验证器定时验证session的有效性 -->
+	<bean id="sessionValidationSchedular"
+		class="org.apache.shiro.session.mgt.quartz.QuartzSessionValidationScheduler">
+		<property name="sessionValidationInterval" value="1800000"></property>
+		<property name="sessionManager" ref="sessionManager"></property>
+	</bean>
+
+	<!-- session会话管理器 -->
+	<bean id="sessionManager"
+		class="org.apache.shiro.web.session.mgt.DefaultWebSessionManager">
+		<property name="globalSessionTimeout" value="180000" />
+		<property name="deleteInvalidSessions" value="true" />
+		<property name="sessionValidationSchedulerEnabled" value="true" />
+		<property name="sessionValidationScheduler" ref="sessionValidationSchedular" />
+		<property name="sessionDAO" ref="sessionDao" />
+		<property name="sessionIdCookieEnabled" value="true" />
+		<property name="sessionIdCookie" ref="sessionIdCookie" />
+	</bean>
+
+	<bean id="singleSignOutFilter" class="org.jasig.cas.client.session.SingleSignOutFilter" />
+	<bean name="assertionThreadLocalFilter" class="org.jasig.cas.client.util.AssertionThreadLocalFilter" />
+	<bean id="casSubjectFactory" class="org.apache.shiro.cas.CasSubjectFactory" />
+
+	<!-- Realm实现 -->
+	<bean id="casRealm" class="com.zheng.realm.MyCasRealm">
+		<property name="userService" ref="userService" />
+		<property name="cachingEnabled" value="true" />
+		<property name="authenticationCachingEnabled" value="true" />
+		<property name="authenticationCacheName" value="authenticationCache" />
+		<property name="authorizationCachingEnabled" value="true" />
+		<property name="authorizationCacheName" value="authorizationCache" />
+		<property name="casServerUrlPrefix" value="https://localhost:8443/sso-server" />
+		<property name="casService" value="https://localhost:8443/sso-client/cas" />
+	</bean>
+
+	<!-- shiro安全管理器 -->
+	<bean id="securityManager" class="org.apache.shiro.web.mgt.DefaultWebSecurityManager">
+		<property name="realm" ref="casRealm" />
+		<property name="sessionManager" ref="sessionManager" />
+		<property name="cacheManager" ref="cacheManager" />
+		<property name="rememberMeManager" ref="rememberMeManager"></property>
+		<property name="subjectFactory" ref="casSubjectFactory"></property>
+	</bean>
+
+	<!-- 相当于调用SecurityUtils.setSecurityManager(securityManager) -->
+	<bean
+		class="org.springframework.beans.factory.config.MethodInvokingFactoryBean">
+		<property name="staticMethod"
+			value="org.apache.shiro.SecurityUtils.setSecurityManager" />
+		<property name="arguments" ref="securityManager" />
+	</bean>
+
+	<bean id="casFilter" class="org.apache.shiro.cas.CasFilter">
+		<property name="failureUrl" value="/casFailture.jsp"></property>
+	</bean>
+
+	<bean id="shiroFilter" class="org.apache.shiro.spring.web.ShiroFilterFactoryBean">
+		<property name="securityManager" ref="securityManager"></property>
+		<property name="loginUrl"
+			value="https://localhost:8443/sso-server/login?service=https://localhost:8443/sso-client/cas"></property>
+		<property name="successUrl" value="/"></property>
+		<property name="filters">
+			<util:map>
+				<entry key="cas" value-ref="casFilter"></entry>
+			</util:map>
+		</property>
+		<property name="filterChainDefinitions">
+			<value>
+				/casFailture.jsp = anon
+				/cas = cas
+				/logout = logout
+				/** = user
+			</value>
+		</property>
+	</bean>
+
+	<!-- Shiro生命周期处理器 -->
+	<bean id="lifecycleBeanPostProcessor" class="org.apache.shiro.spring.LifecycleBeanPostProcessor" />
+</beans>
