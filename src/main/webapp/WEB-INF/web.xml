@@ -14,22 +14,66 @@
 		<listener-class>org.springframework.web.context.ContextLoaderListener</listener-class>
 	</listener>
 
+	<!-- 单点登出 -->
+	<context-param>
+		<param-name>webAppRootKey</param-name>
+		<param-value>authority.root</param-value>
+	</context-param>
 	<listener>
 		<listener-class>org.jasig.cas.client.session.SingleSignOutHttpSessionListener</listener-class>
 	</listener>
 
 	<filter>
-		<filter-name>characterEncodingFilter</filter-name>
-		<filter-class>org.springframework.web.filter.CharacterEncodingFilter</filter-class>
+		<filter-name>signoutFilter</filter-name>
+		<filter-class>org.jasig.cas.client.session.SingleSignOutFilter</filter-class>
+	</filter>
+	<filter-mapping>
+		<filter-name>signoutFilter</filter-name>
+		<url-pattern>/*</url-pattern>
+	</filter-mapping>
+
+	<!-- <filter>
+		<filter-name>authenticationFilter</filter-name>
+		<filter-class>org.jasig.cas.client.authentication.AuthenticationFilter</filter-class>
 		<init-param>
-			<param-name>forceEncoding</param-name>
-			<param-value>true</param-value>
+			<param-name>casServerLoginUrl</param-name>
+			<param-value>https://localhost:8443/sso-server/login</param-value>
 		</init-param>
 		<init-param>
-			<param-name>encoding</param-name>
-			<param-value>UTF-8</param-value>
+			<param-name>serverName</param-name>
+			<param-value>https://localhost:8443</param-value>
 		</init-param>
 	</filter>
+	<filter-mapping>
+		<filter-name>authenticationFilter</filter-name>
+		<url-pattern>/*</url-pattern>
+	</filter-mapping>
+
+	<filter>
+		<filter-name>validationFilter</filter-name>
+		<filter-class>org.jasig.cas.client.validation.Cas20ProxyReceivingTicketValidationFilter</filter-class>
+		<init-param>
+			<param-name>casServerUrlPrefix</param-name>
+			<param-value>https://localhost:8443/sso-server</param-value>
+		</init-param>
+		<init-param>
+			<param-name>serverName</param-name>
+			<param-value>https://localhost:8443</param-value>
+		</init-param>
+	</filter>
+	<filter-mapping>
+		<filter-name>validationFilter</filter-name>
+		<url-pattern>/*</url-pattern>
+	</filter-mapping>
+
+	<filter>
+		<filter-name>assertionThreadLocalFilter</filter-name>
+		<filter-class>org.jasig.cas.client.util.AssertionThreadLocalFilter</filter-class>
+	</filter>
+	<filter-mapping>
+		<filter-name>assertionThreadLocalFilter</filter-name>
+		<url-pattern>/*</url-pattern>
+	</filter-mapping> -->
 
 	<!-- shiro 安全过滤器 -->
 	<!-- The filter-name matches name of a 'shiroFilter' bean inside applicationContext.xml -->
@@ -71,5 +115,10 @@
 		<servlet-name>springmvc</servlet-name>
 		<url-pattern>/</url-pattern>
 	</servlet-mapping>
+
+	<welcome-file-list>
+		<welcome-file>index.html</welcome-file>
+		<welcome-file>index.jsp</welcome-file>
+	</welcome-file-list>
 
 </web-app>

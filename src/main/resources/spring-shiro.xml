@@ -17,7 +17,7 @@
 
 	<!-- 会话Cookie模板 -->
 	<bean id="sessionIdCookie" class="org.apache.shiro.web.servlet.SimpleCookie">
-		<constructor-arg value="sid" />
+		<constructor-arg value="sid" /><!-- 这里如果使用了JSESSIONID而且使用了shiro signoutfilter会导致重定向循环 -->
 		<property name="httpOnly" value="true" />
 		<!-- maxAge=-1表示浏览器关闭时清除cookie 需要注意的一点是，在配置了remmemberMe的功能前提下，需要将该cookie的maxAge设置为-1， 
 			也就是在浏览器关闭之后清除登录缓存 -->
@@ -63,8 +63,6 @@
 		<property name="sessionIdCookie" ref="sessionIdCookie" />
 	</bean>
 
-	<bean id="singleSignOutFilter" class="org.jasig.cas.client.session.SingleSignOutFilter" />
-	<bean name="assertionThreadLocalFilter" class="org.jasig.cas.client.util.AssertionThreadLocalFilter" />
 	<bean id="casSubjectFactory" class="org.apache.shiro.cas.CasSubjectFactory" />
 
 	<!-- Realm实现 -->
@@ -100,6 +98,12 @@
 		<property name="failureUrl" value="/casFailture.jsp"></property>
 	</bean>
 
+	<bean id="logoutFilter" class="org.apache.shiro.web.filter.authc.LogoutFilter">
+		<property name="redirectUrl" value="http://localhost:8080/sso-client/logout.jsp" />
+	</bean>
+
+	<bean id="signOutFilter" class="com.zheng.filter.MySignOutFilter"></bean>
+
 	<bean id="shiroFilter" class="org.apache.shiro.spring.web.ShiroFilterFactoryBean">
 		<property name="securityManager" ref="securityManager"></property>
 		<property name="loginUrl"
@@ -108,13 +112,15 @@
 		<property name="filters">
 			<util:map>
 				<entry key="cas" value-ref="casFilter"></entry>
+				<entry key="signout" value-ref="signOutFilter"></entry>
 			</util:map>
 		</property>
 		<property name="filterChainDefinitions">
 			<value>
 				/casFailture.jsp = anon
-				/cas = cas
-				/logout = logout
+				/logout.jsp = signout,anon
+				/cas = signout,cas
+				/logout = logoutFilter
 				/** = user
 			</value>
 		</property>
